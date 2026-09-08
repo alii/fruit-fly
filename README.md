@@ -22,7 +22,11 @@ const world: World = {
 runWorld(brain, neurons, world, { ms: 500 });
 ```
 
-`sense` runs every 10 ms and is where you set firing rates. `act` runs whenever an output neuron fires. `neurons.find` looks up neurons by `type`, `class`, `side` and so on, using the names from the Janelia annotations.
+`sense` is where you set firing rates. `act` runs whenever an output neuron fires. `neurons.find` looks up neurons by `type`, `class`, `side` and so on, using the names from the Janelia annotations.
+
+All times are simulated time, not wall clock time. The brain advances in steps of 0.1 ms, and `runWorld` is a plain loop that runs those steps as fast as it can, then returns. `ms: 500` means 500 ms of simulated time, which is 5000 steps. `sense` is called every 10 ms of simulated time by default, since sensory input rarely changes faster than that, and you can change it with `senseEveryMs`.
+
+The simulated clock exists because the neuron model is built from time constants measured in real flies, such as a 20 ms membrane time constant and a 1.8 ms synaptic delay.
 
 ## Setup
 
