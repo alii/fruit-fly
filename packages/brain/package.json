@@ -1,0 +1,19 @@
+{
+  "name": "@fly/brain",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build:data": "uv run --with pyarrow --with pandas --with numpy python3 ../../scripts/build_brain.py",
+    "example": "bun run examples/giant-fiber.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^7"
+  }
+}
