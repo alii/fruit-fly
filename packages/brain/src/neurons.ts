@@ -1,4 +1,5 @@
 import type { NeuronTable } from "./format.ts";
+import { range } from "./util.ts";
 
 export interface NeuronQuery {
   type?: string | RegExp;
@@ -11,45 +12,53 @@ export interface NeuronQuery {
   bodyId?: number;
 }
 
+const EXACT_FIELDS = [
+  "superclass",
+  "class",
+  "subclass",
+  "nerve",
+  "side",
+  "nt",
+  "bodyId",
+] as const;
+
+type Check = (i: number) => boolean;
+
 /** Lookup helpers over the neuron metadata table. */
 export class Neurons {
-  private byBody = new Map<number, number>();
+  private readonly byBody: ReadonlyMap<number, number>;
   constructor(readonly table: NeuronTable) {
-    table.bodyId.forEach((b, i) => this.byBody.set(b, i));
+    this.byBody = new Map(table.bodyId.map((b, i) => [b, i]));
   }
-  get size() {
+  get size(): number {
     return this.table.bodyId.length;
   }
 
-  index(bodyId: number): number {
-    const i = this.byBody.get(bodyId);
-    if (i === undefined) throw new Error(`unknown bodyId ${bodyId}`);
-    return i;
+  /** index of a neuron by its Janelia body id, or undefined */
+  index(bodyId: number): number | undefined {
+    return this.byBody.get(bodyId);
   }
 
   /** neuron indices matching every given field */
   find(q: NeuronQuery): Uint32Array {
+    const checks = this.checks(q);
+    return range(this.size).filter((i) => checks.every((c) => c(i)));
+  }
+
+  private checks(q: NeuronQuery): readonly Check[] {
     const t = this.table;
-    const out: number[] = [];
-    for (let i = 0; i < this.size; i++) {
-      if (q.bodyId !== undefined && t.bodyId[i] !== q.bodyId) continue;
-      if (q.superclass !== undefined && t.superclass[i] !== q.superclass)
-        continue;
-      if (q.class !== undefined && t.class[i] !== q.class) continue;
-      if (q.subclass !== undefined && t.subclass[i] !== q.subclass) continue;
-      if (q.nerve !== undefined && t.nerve[i] !== q.nerve) continue;
-      if (q.side !== undefined && t.side[i] !== q.side) continue;
-      if (q.nt !== undefined && t.nt[i] !== q.nt) continue;
-      if (q.type !== undefined) {
-        const ty = t.type[i];
-        if (ty === null) continue;
-        if (ty === undefined) continue;
-        if (typeof q.type === "string" ? ty !== q.type : !q.type.test(ty))
-          continue;
-      }
-      out.push(i);
-    }
-    return Uint32Array.from(out);
+    const exact = EXACT_FIELDS.filter((k) => q[k] !== undefined).map(
+      (k): Check =>
+        (i) =>
+          t[k][i] === q[k],
+    );
+    const type = q.type;
+    if (type === undefined) return exact;
+    const byType: Check =
+      typeof type === "string"
+        ? (i) => t.type[i] === type
+        : (i) => type.test(t.type[i] ?? "");
+    return [...exact, byType];
   }
 
   describe(i: number): string {

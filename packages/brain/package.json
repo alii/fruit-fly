@@ -8,12 +8,17 @@
   },
   "scripts": {
     "build:data": "uv run --with pyarrow --with pandas --with numpy python3 ../../scripts/build_brain.py",
-    "example": "bun run examples/giant-fiber.ts"
+    "example": "bun run examples/giant-fiber.ts",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p .",
+    "gen:channels": "bun run scripts/gen-channels.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^7"
+    "@eslint/js": "^10.0.1",
+    "@types/bun": "latest",
+    "eslint": "^10.10.0",
+    "eslint-plugin-functional": "^10.0.0",
+    "typescript-eslint": "^8.70.0",
+    "typescript": "^5.9"
   }
 }

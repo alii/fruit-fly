@@ -1,11 +1,15 @@
 import type { Lif } from "./lif.ts";
 import type { Neurons } from "./neurons.ts";
+import { range } from "./util.ts";
 
-/** A grayscale image. `data` is row-major, values 0..1 or 0..255. */
+/**
+ * A grayscale image, row-major. Values are 0..255 for Uint8Array and
+ * Uint8ClampedArray data, 0..1 for anything else.
+ */
 export interface Frame {
-  width: number;
-  height: number;
-  data: ArrayLike<number>;
+  readonly width: number;
+  readonly height: number;
+  readonly data: ArrayLike<number>;
 }
 
 export interface EyeOptions {
@@ -16,20 +20,23 @@ export interface EyeOptions {
   /** how long an on/off response lasts after the change, ms. default 100 */
   tauMs?: number;
   /** which lamina cell types get luminance increase, decrease, and steady luminance */
-  onTypes?: string[];
-  offTypes?: string[];
-  steadyTypes?: string[];
+  onTypes?: readonly string[];
+  offTypes?: readonly string[];
+  steadyTypes?: readonly string[];
 }
 
-interface Column {
-  hex1: number;
-  hex2: number;
-  u: number;
-  v: number;
-  on: number[];
-  off: number[];
-  steady: number[];
+/** One column of the optic lobe: a pixel, with its position in 0..1 and its lamina cells. */
+export interface Column {
+  readonly hex1: number;
+  readonly hex2: number;
+  readonly u: number;
+  readonly v: number;
+  readonly on: Uint32Array;
+  readonly off: Uint32Array;
+  readonly steady: Uint32Array;
 }
+
+type Role = "on" | "off" | "steady";
 
 /**
  * One compound eye. Maps a frame onto the optic lobe's hex grid of about 880 columns
@@ -37,14 +44,14 @@ interface Column {
  * L1 is driven by luminance increases, L2 by decreases, L3 by luminance.
  */
 export class Eye {
-  readonly columns: Column[] = [];
+  readonly columns: readonly Column[];
+  readonly maxHz: number;
+  readonly steadyHz: number;
+  readonly tauMs: number;
   private prev: Float32Array;
   private on: Float32Array; // decaying on/off response per column
   private off: Float32Array;
   private lastT = 0;
-  readonly maxHz: number;
-  readonly steadyHz: number;
-  readonly tauMs: number;
 
   constructor(
     readonly neurons: Neurons,
@@ -54,52 +61,12 @@ export class Eye {
     this.maxHz = opts.maxHz ?? 300;
     this.steadyHz = opts.steadyHz ?? 20;
     this.tauMs = opts.tauMs ?? 100;
-    const on = new Set(opts.onTypes ?? ["L1"]);
-    const off = new Set(opts.offTypes ?? ["L2"]);
-    const steady = new Set(opts.steadyTypes ?? ["L3"]);
-    const t = neurons.table;
-    const byKey = new Map<number, Column>();
-    for (let i = 0; i < neurons.size; i++) {
-      const h1 = t.hex1[i],
-        h2 = t.hex2[i],
-        ty = t.type[i];
-      if (h1 == null || h2 == null || ty == null || t.side[i] !== side)
-        continue;
-      const which = on.has(ty)
-        ? "on"
-        : off.has(ty)
-          ? "off"
-          : steady.has(ty)
-            ? "steady"
-            : null;
-      if (!which) continue;
-      const key = h1 * 64 + h2;
-      let c = byKey.get(key);
-      if (!c) {
-        c = { hex1: h1, hex2: h2, u: 0, v: 0, on: [], off: [], steady: [] };
-        byKey.set(key, c);
-        this.columns.push(c);
-      }
-      c[which].push(i);
-    }
-    // the hex grid is skewed: each row of hex2 shifts hex1 by half a step. undo that,
-    // then normalise to 0..1 so u,v index into an ordinary image.
-    let minX = Infinity,
-      maxX = -Infinity,
-      minY = Infinity,
-      maxY = -Infinity;
-    for (const c of this.columns) {
-      const x = c.hex1 - c.hex2 / 2,
-        y = c.hex2;
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-    }
-    for (const c of this.columns) {
-      c.u = (c.hex1 - c.hex2 / 2 - minX) / (maxX - minX);
-      c.v = (c.hex2 - minY) / (maxY - minY);
-    }
+    const roles = new Map<string, Role>([
+      ...(opts.onTypes ?? ["L1"]).map((t): [string, Role] => [t, "on"]),
+      ...(opts.offTypes ?? ["L2"]).map((t): [string, Role] => [t, "off"]),
+      ...(opts.steadyTypes ?? ["L3"]).map((t): [string, Role] => [t, "steady"]),
+    ]);
+    this.columns = buildColumns(neurons, side, roles);
     this.prev = new Float32Array(this.columns.length);
     this.on = new Float32Array(this.columns.length);
     this.off = new Float32Array(this.columns.length);
@@ -107,56 +74,103 @@ export class Eye {
 
   /** Sample a frame at each column's position. Returns per-column luminance 0..1. */
   sample(frame: Frame): Float32Array {
-    const out = new Float32Array(this.columns.length);
-    const scale = maxOf(frame.data) > 1 ? 1 / 255 : 1;
-    for (let k = 0; k < this.columns.length; k++) {
-      const c = this.columns[k]!;
+    const scale =
+      frame.data instanceof Uint8Array ||
+      frame.data instanceof Uint8ClampedArray
+        ? 1 / 255
+        : 1;
+    return Float32Array.from(this.columns, (c) => {
       const x = Math.min(frame.width - 1, Math.floor(c.u * frame.width));
       const y = Math.min(frame.height - 1, Math.floor(c.v * frame.height));
-      out[k] = frame.data[y * frame.width + x]! * scale;
-    }
-    return out;
+      return frame.data[y * frame.width + x]! * scale;
+    });
   }
 
   /**
    * Show the eye a frame. Sets drives on the lamina cells. Call from World.sense.
    * A change in a pixel starts a response that decays over `tauMs`.
    */
-  see(brain: Lif, frame: Frame) {
-    const t = brain.timeMs;
-    const decay = Math.exp(-(t - this.lastT) / this.tauMs);
-    this.lastT = t;
+  see(brain: Lif, frame: Frame): void {
+    const decay = Math.exp(-(brain.timeMs - this.lastT) / this.tauMs);
+    this.lastT = brain.timeMs;
     const lum = this.sample(frame);
-    for (let k = 0; k < this.columns.length; k++) {
-      const c = this.columns[k]!;
-      const l = lum[k]!,
-        d = l - this.prev[k]!;
-      const on = Math.max(this.on[k]! * decay, d),
-        off = Math.max(this.off[k]! * decay, -d);
-      this.on[k] = on;
-      this.off[k] = off;
-      brain.setDrive(c.on, this.maxHz * on);
-      brain.setDrive(c.off, this.maxHz * off);
-      brain.setDrive(c.steady, this.steadyHz * l);
-    }
+    this.on = Float32Array.from(lum, (l, k) =>
+      Math.max(this.on[k]! * decay, l - this.prev[k]!),
+    );
+    this.off = Float32Array.from(lum, (l, k) =>
+      Math.max(this.off[k]! * decay, this.prev[k]! - l),
+    );
     this.prev = lum;
+    this.columns.forEach((c, k) => {
+      brain.setDrive(c.on, this.maxHz * this.on[k]!);
+      brain.setDrive(c.off, this.maxHz * this.off[k]!);
+      brain.setDrive(c.steady, this.steadyHz * lum[k]!);
+    });
   }
 
   /** Stop driving this eye. */
-  dark(brain: Lif) {
-    for (const c of this.columns) {
+  dark(brain: Lif): void {
+    this.columns.forEach((c) => {
       brain.setDrive(c.on, 0);
       brain.setDrive(c.off, 0);
       brain.setDrive(c.steady, 0);
-    }
-    this.prev.fill(0);
-    this.on.fill(0);
-    this.off.fill(0);
+    });
+    this.prev = new Float32Array(this.columns.length);
+    this.on = new Float32Array(this.columns.length);
+    this.off = new Float32Array(this.columns.length);
   }
 }
 
-function maxOf(a: ArrayLike<number>): number {
-  let m = 0;
-  for (let i = 0; i < a.length; i++) if (a[i]! > m) m = a[i]!;
-  return m;
+interface Cell {
+  readonly i: number;
+  readonly hex1: number;
+  readonly hex2: number;
+  readonly role: Role;
+}
+
+function buildColumns(
+  neurons: Neurons,
+  side: "L" | "R",
+  roles: ReadonlyMap<string, Role>,
+): readonly Column[] {
+  const t = neurons.table;
+  const cells = Array.from(range(neurons.size))
+    .filter(
+      (i) =>
+        t.side[i] === side &&
+        t.hex1[i] !== null &&
+        t.hex2[i] !== null &&
+        roles.has(t.type[i] ?? ""),
+    )
+    .map((i): Cell => ({
+      i,
+      hex1: t.hex1[i]!,
+      hex2: t.hex2[i]!,
+      role: roles.get(t.type[i]!)!,
+    }));
+  const grouped = [...Map.groupBy(cells, (c) => c.hex1 * 64 + c.hex2).values()];
+  // the hex grid is skewed: each row of hex2 shifts hex1 by half a step. undo that,
+  // then normalise to 0..1 so u,v index into an ordinary image.
+  const xs = grouped.map((g) => g[0]!.hex1 - g[0]!.hex2 / 2);
+  const ys = grouped.map((g) => g[0]!.hex2);
+  const [minX, maxX, minY, maxY] = [
+    Math.min(...xs),
+    Math.max(...xs),
+    Math.min(...ys),
+    Math.max(...ys),
+  ];
+  const ids = (g: readonly Cell[], role: Role) =>
+    Uint32Array.from(
+      g.filter((c) => c.role === role),
+      (c) => c.i,
+    );
+  return grouped.map((g, k): Column => ({
+    hex1: g[0]!.hex1,
+    hex2: g[0]!.hex2,
+    u: (xs[k]! - minX) / (maxX - minX),
+    v: (ys[k]! - minY) / (maxY - minY),
+    on: ids(g, "on"),
+    off: ids(g, "off"),
+    steady: ids(g, "steady"),
+  }));
 }

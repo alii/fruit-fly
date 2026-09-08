@@ -5,18 +5,18 @@ Run a fruit fly brain in TypeScript.
 The neurons and connections come from the [Janelia male CNS connectome](https://male-cns.janelia.org/), which maps every neuron in one fly. You give input to the sensory neurons and get spikes out of the motor neurons.
 
 ```ts
-import { openBrain, runWorld, type World } from '@fly/brain';
+import { openBrain, runWorld, type World } from "@fly/brain";
 
-const { brain, neurons } = await openBrain('data');
+const { brain, neurons } = await openBrain("data");
 
 const world: World = {
-	outputs: n => n.find({ superclass: 'vnc_motor' }),
-	sense(t, brain, n) {
-		brain.setDrive(n.find({ class: 'gustatory' }), t < 200 ? 50 : 0);
-	},
-	act(t, spikes, _b, n) {
-		for (const i of spikes) console.log(t, n.describe(i));
-	},
+  outputs: (n) => n.find({ superclass: "vnc_motor" }),
+  sense(t, brain, n) {
+    brain.setDrive(n.find({ class: "gustatory" }), t < 200 ? 50 : 0);
+  },
+  act(t, spikes, _b, n) {
+    for (const i of spikes) console.log(t, n.describe(i));
+  },
 };
 
 runWorld(brain, neurons, world, { ms: 500 });
@@ -33,17 +33,17 @@ The simulated clock exists because the neuron model is built from time constants
 `Eye` maps an image onto one compound eye and drives its lamina cells. Each eye is a hex grid of about 880 columns, and each column is one pixel.
 
 ```ts
-import { Eye } from '@fly/brain';
+import { Eye } from "@fly/brain";
 
-const eye = new Eye(neurons, 'R');
+const eye = new Eye(neurons, "R");
 
 const world: World = {
-	sense(t, brain) {
-		eye.see(brain, { width: 64, height: 64, data: pixels });
-	},
-	act(t, spikes, _b, n) {
-		/* ... */
-	},
+  sense(t, brain) {
+    eye.see(brain, { width: 64, height: 64, data: pixels });
+  },
+  act(t, spikes, _b, n) {
+    /* ... */
+  },
 };
 ```
 
@@ -55,18 +55,20 @@ The "got brighter" pathway does not get past the lamina in this model. In the re
 
 ## Other senses
 
-`Senses` groups every other sensory neuron in the data into named channels and drives them by level.
+`senses` groups every other sensory neuron in the data into a tree. Every node is typed from the data, so the editor completes the names and a wrong one is a compile error.
 
 ```ts
-import { Senses } from '@fly/brain';
+import { senses } from "@fly/brain";
 
-const senses = new Senses(neurons);
+const s = senses(neurons);
 
-senses.list(); // every channel and its neuron count
-senses.set(brain, 'smell/DA1', 0.8); // one glomerulus
-senses.set(brain, 'leg/front/L/touch', 1); // bristles on one leg
-senses.set(brain, 'haltere', 0.5); // a prefix drives everything under it
-senses.off(brain);
+s.smell.DA1.set(brain, 0.8); // one glomerulus
+s.leg.front.L.touch.set(brain, 1); // bristles on one leg
+s.haltere.set(brain, 0.5); // every channel under a node
+s.at("leg/front/L/touch").set(brain, 1); // same thing by path
+s.off(brain);
+
+s.channels; // every channel and its neurons
 ```
 
 Channel names are paths. The top levels are:
@@ -87,7 +89,7 @@ Channel names are paths. The top levels are:
 | `back`, `abdomen`                                                                                 | bristles and stretch receptors on the thorax and abdomen                   |
 | `ocelli/<side>`                                                                                   | second-order neurons of the three small eyes on top of the head            |
 
-Most channels split by side and end in `L` or `R`. `?` is used where the data has no side.
+Most channels split by side and end in `L` or `R`. `?` is used where the data has no side. The names come from `packages/brain/src/channels.generated.ts`, which `bun run gen:channels` rebuilds from the data.
 
 Balance comes from several of these at once. Halteres report body rotation in flight, the wind and gravity neurons in the antennae report which way is down, the leg load and position channels report where the weight is when standing, and the ocelli see the horizon.
 
@@ -109,6 +111,8 @@ cd ../packages/brain
 bun run build:data
 bun run example
 ```
+
+`bun run lint` and `bun run typecheck` check the package.
 
 The download is about 1.2 GB. `build:data` turns it into a compact binary the simulator loads directly. The example drives the LC4 and LPLC2 looming detectors and prints when the giant fiber fires.
 

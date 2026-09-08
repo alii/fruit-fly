@@ -1,5 +1,6 @@
 import type { Lif } from "./lif.ts";
 import type { Neurons } from "./neurons.ts";
+import { concat, times } from "./util.ts";
 
 /** Everything outside the brain. Supplies input to sensory neurons and consumes motor output. */
 export interface World {
@@ -13,18 +14,15 @@ export interface World {
 
 export interface RunOptions {
   ms: number;
-  senseEveryMs?: number;
+  senseEveryMs?: number; // default 10
 }
 
 export function defaultOutputs(neurons: Neurons): Uint32Array {
-  const a = neurons.find({ superclass: "vnc_motor" });
-  const b = neurons.find({ superclass: "cb_motor" });
-  const c = neurons.find({ superclass: "descending_neuron" });
-  const out = new Uint32Array(a.length + b.length + c.length);
-  out.set(a, 0);
-  out.set(b, a.length);
-  out.set(c, a.length + b.length);
-  return out;
+  return concat(
+    ["vnc_motor", "cb_motor", "descending_neuron"].map((superclass) =>
+      neurons.find({ superclass }),
+    ),
+  );
 }
 
 /** Run the brain for `ms` of simulated time, calling `world.sense` and `world.act` as it goes. */
@@ -33,22 +31,16 @@ export function runWorld(
   neurons: Neurons,
   world: World,
   opts: RunOptions,
-) {
-  const senseEvery = opts.senseEveryMs ?? 10;
-  const isOutput = new Uint8Array(brain.graph.n);
-  for (const i of (world.outputs ?? defaultOutputs)(neurons)) isOutput[i] = 1;
+): void {
+  const outputs = new Set((world.outputs ?? defaultOutputs)(neurons));
   const steps = Math.round(opts.ms / brain.p.dtMs);
-  const senseSteps = Math.max(1, Math.round(senseEvery / brain.p.dtMs));
-  for (let k = 0; k < steps; k++) {
+  const senseSteps = Math.max(
+    1,
+    Math.round((opts.senseEveryMs ?? 10) / brain.p.dtMs),
+  );
+  times(steps, (k) => {
     if (k % senseSteps === 0) world.sense(brain.timeMs, brain, neurons);
-    const sp = brain.tick();
-    if (!sp.length) continue;
-    let m = 0;
-    for (let j = 0; j < sp.length; j++) if (isOutput[sp[j]!]) m++;
-    if (!m) continue;
-    const outSp = new Uint32Array(m);
-    for (let j = 0, q = 0; j < sp.length; j++)
-      if (isOutput[sp[j]!]) outSp[q++] = sp[j]!;
-    world.act(brain.timeMs, outSp, brain, neurons);
-  }
+    const fired = brain.tick().filter((i) => outputs.has(i));
+    if (fired.length > 0) world.act(brain.timeMs, fired, brain, neurons);
+  });
 }

@@ -14,31 +14,30 @@ const lplc2 = neurons.find({ type: "LPLC2" });
 const gf = neurons.find({ type: "DNp01" });
 console.log(`LC4: ${lc4.length}  LPLC2: ${lplc2.length}  GF: ${gf.length}`);
 
-const gfSet = new Set(gf);
 const world: World = {
   outputs: () => gf,
   sense(t, b) {
-    const on = t >= 100 && t < 300;
-    b.setDrive(lc4, on ? 100 : 0);
-    b.setDrive(lplc2, on ? 100 : 0);
+    // looming stimulus between 100 ms and 300 ms
+    const hz = t >= 100 && t < 300 ? 100 : 0;
+    b.setDrive(lc4, hz);
+    b.setDrive(lplc2, hz);
   },
   act(t, spikes, _b, n) {
-    for (const i of spikes)
-      if (gfSet.has(i))
-        console.log(`t=${t.toFixed(1)}ms  ${n.describe(i)} FIRED`);
+    spikes.forEach((i) =>
+      console.log(`t=${t.toFixed(1)}ms  ${n.describe(i)} FIRED`),
+    );
   },
 };
 
 const t0 = performance.now();
 runWorld(brain, neurons, world, { ms: 400 });
-const dt = performance.now() - t0;
-console.log(`sim 400 ms in ${dt.toFixed(0)} ms wall`);
+console.log(`sim 400 ms in ${(performance.now() - t0).toFixed(0)} ms wall`);
 
-const top = [...brain.counts]
-  .map((c, i) => [c, i] as const)
-  .filter((x) => x[0] > 0)
+const top = Array.from(brain.counts, (c, i) => [c, i] as const)
+  .filter(([c]) => c > 0)
   .sort((a, b) => b[0] - a[0])
   .slice(0, 15);
 console.log("top firing neurons:");
-for (const [c, i] of top)
-  console.log(`  ${String(c).padStart(4)}  ${neurons.describe(i)}`);
+top.forEach(([c, i]) =>
+  console.log(`  ${String(c).padStart(4)}  ${neurons.describe(i)}`),
+);
