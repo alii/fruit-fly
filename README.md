@@ -98,15 +98,15 @@ The channels only say which neurons fire together, not what a level means. For t
 ## Install
 
 ```sh
-bun add github:alii/fly
+bun add github:alii/fruit-fly
 ```
 
 Then download the prebuilt brain, about 65 MB, into a folder of your choice:
 
 ```sh
 mkdir -p data
-curl -L -o data/brain.bin https://github.com/alii/fly/releases/download/data/brain.bin
-curl -L -o data/neurons.json https://github.com/alii/fly/releases/download/data/neurons.json
+curl -L -o data/brain.bin https://github.com/alii/fruit-fly/releases/download/data/brain.bin
+curl -L -o data/neurons.json https://github.com/alii/fruit-fly/releases/download/data/neurons.json
 ```
 
 `openBrain('data')` loads it. The loader uses `Bun.file`, so it needs bun.
@@ -116,7 +116,7 @@ curl -L -o data/neurons.json https://github.com/alii/fly/releases/download/data/
 Only needed to change the data build. Needs bun and uv.
 
 ```sh
-git clone https://github.com/alii/fly && cd fly && bun install
+git clone https://github.com/alii/fruit-fly && cd fruit-fly && bun install
 cd data
 for f in body-annotations-male-cns-v1.0-minconf-0.5.feather \
          body-neurotransmitters-male-cns-v1.0.feather \

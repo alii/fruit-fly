@@ -25,7 +25,7 @@
 	},
 	"description": "Spiking simulation of the fruit fly brain from the Janelia male CNS connectome",
 	"license": "MIT",
-	"repository": "github:alii/fly",
+	"repository": "github:alii/fruit-fly",
 	"files": [
 		"src",
 		"scripts/gen-channels.ts",
