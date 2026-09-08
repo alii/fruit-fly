@@ -1,11 +1,7 @@
 import type { Lif } from "./lif.ts";
 import type { Neurons } from "./neurons.ts";
 
-/**
- * "The world" from the brain's point of view.
- * The brain only has two doors: sensory neurons (in) and motor/descending neurons (out).
- * Implement this to give the brain a body, a game, a robot, whatever.
- */
+/** Everything outside the brain. Supplies input to sensory neurons and consumes motor output. */
 export interface World {
   /** which neurons count as output. default: motor + descending neurons */
   outputs?(neurons: Neurons): Uint32Array;
@@ -31,7 +27,7 @@ export function defaultOutputs(neurons: Neurons): Uint32Array {
   return out;
 }
 
-/** Close the loop: world -> sensory neurons -> brain -> motor neurons -> world. */
+/** Run the brain for `ms` of simulated time, calling `world.sense` and `world.act` as it goes. */
 export function runWorld(
   brain: Lif,
   neurons: Neurons,

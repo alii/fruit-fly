@@ -4,6 +4,8 @@ export interface NeuronQuery {
   type?: string | RegExp;
   superclass?: string;
   class?: string;
+  subclass?: string;
+  nerve?: string;
   side?: "L" | "R" | "M";
   nt?: string;
   bodyId?: number;
@@ -34,6 +36,8 @@ export class Neurons {
       if (q.superclass !== undefined && t.superclass[i] !== q.superclass)
         continue;
       if (q.class !== undefined && t.class[i] !== q.class) continue;
+      if (q.subclass !== undefined && t.subclass[i] !== q.subclass) continue;
+      if (q.nerve !== undefined && t.nerve[i] !== q.nerve) continue;
       if (q.side !== undefined && t.side[i] !== q.side) continue;
       if (q.nt !== undefined && t.nt[i] !== q.nt) continue;
       if (q.type !== undefined) {

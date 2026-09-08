@@ -78,7 +78,7 @@ export class Lif {
     this.drive.clear();
   }
 
-  /** Zero every synapse out of these neurons (silencing). Irreversible on this instance. */
+  /** Zero every synapse out of these neurons. Not reversible on this instance. */
   silence(neurons: ArrayLike<number>) {
     const { rowPtr, w } = this.graph;
     for (let k = 0; k < neurons.length; k++) {
@@ -150,6 +150,17 @@ export class Lif {
       const sp = this.tick();
       if (onSpikes && sp.length) onSpikes(this.timeMs, sp);
     }
+  }
+
+  /** Return every neuron to rest, drop pending spikes and drives, zero the counts. Time keeps running. */
+  reset() {
+    this.v.fill(this.p.vRest);
+    this.g.fill(0);
+    this.refractoryUntil.fill(-1);
+    for (const r of this.ring) r.length = 0;
+    this.drive.clear();
+    this.spikeCount.fill(0);
+    this.spikes = new Uint32Array(0);
   }
 
   resetCounts() {

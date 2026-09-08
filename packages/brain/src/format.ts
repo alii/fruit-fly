@@ -12,9 +12,14 @@ export interface NeuronTable {
   type: (string | null)[];
   superclass: (string | null)[];
   class: (string | null)[];
+  subclass: (string | null)[];
   side: (string | null)[];
   nt: (string | null)[];
   instance: (string | null)[];
+  nerve: (string | null)[]; // nerve the neuron enters the CNS through, for sensory neurons
+  receptor: (string | null)[];
+  hex1: (number | null)[]; // optic lobe column coordinates, for eye neurons
+  hex2: (number | null)[];
 }
 
 export async function loadGraph(path: string): Promise<Graph> {

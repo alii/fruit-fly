@@ -28,6 +28,71 @@ All times are simulated time, not wall clock time. The brain advances in steps o
 
 The simulated clock exists because the neuron model is built from time constants measured in real flies, such as a 20 ms membrane time constant and a 1.8 ms synaptic delay.
 
+## Vision
+
+`Eye` maps an image onto one compound eye and drives its lamina cells. Each eye is a hex grid of about 880 columns, and each column is one pixel.
+
+```ts
+import { Eye } from '@fly/brain';
+
+const eye = new Eye(neurons, 'R');
+
+const world: World = {
+	sense(t, brain) {
+		eye.see(brain, { width: 64, height: 64, data: pixels });
+	},
+	act(t, spikes, _b, n) {
+		/* ... */
+	},
+};
+```
+
+`data` is grayscale, row-major, 0 to 1 or 0 to 255. Any image source works: a canvas, a screenshot, a game framebuffer. The frame is resampled to the eye's grid, so the size doesn't matter much.
+
+A pixel that gets brighter drives the column's L1 cell, one that gets darker drives L2, and L3 follows brightness. A change starts a response that fades over 100 ms. The rates are chosen so that a dark disc growing on the eye fires the giant fiber escape neuron, which happens through LC4 in the real fly too. See `examples/looming.ts`.
+
+The "got brighter" pathway does not get past the lamina in this model. In the real fly it works by releasing cells from inhibition, and a leaky integrate-and-fire neuron with no background activity has nothing to release. Motion detection here comes from the "got darker" pathway only.
+
+## Other senses
+
+`Senses` groups every other sensory neuron in the data into named channels and drives them by level.
+
+```ts
+import { Senses } from '@fly/brain';
+
+const senses = new Senses(neurons);
+
+senses.list(); // every channel and its neuron count
+senses.set(brain, 'smell/DA1', 0.8); // one glomerulus
+senses.set(brain, 'leg/front/L/touch', 1); // bristles on one leg
+senses.set(brain, 'haltere', 0.5); // a prefix drives everything under it
+senses.off(brain);
+```
+
+Channel names are paths. The top levels are:
+
+| channel                                                                                           | what it is                                                                 |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `smell/<glomerulus>`                                                                              | olfactory receptor neurons, one channel per glomerulus, 50 of them         |
+| `taste/labellum`, `taste/pharynx`, `taste/leg/<front,middle,hind>`, `taste/wing`, `taste/abdomen` | taste neurons by body part                                                 |
+| `hear`                                                                                            | Johnston's organ sound neurons in the antenna                              |
+| `antenna/<side>/wind_gravity`                                                                     | Johnston's organ wind and gravity neurons                                  |
+| `antenna/<side>/touch`                                                                            | antenna bristles                                                           |
+| `temperature/<glomerulus>`, `humidity/<glomerulus>`                                               | VP2 is hot, VP3 cold, VP4 dry, VP5 moist                                   |
+| `head/eyes`, `head/mouth`, `head/other`                                                           | bristles on the head                                                       |
+| `leg/<front,middle,hind>/<side>/<touch,joint,load,position>`                                      | bristles, chordotonal organs, campaniform sensilla and hair plates per leg |
+| `neck`                                                                                            | prosternal hair plates, which sense head position                          |
+| `wing/<side>/<touch,strain>`                                                                      | wing bristles and wing campaniform sensilla                                |
+| `haltere/<side>`                                                                                  | haltere sensory neurons                                                    |
+| `back`, `abdomen`                                                                                 | bristles and stretch receptors on the thorax and abdomen                   |
+| `ocelli/<side>`                                                                                   | second-order neurons of the three small eyes on top of the head            |
+
+Most channels split by side and end in `L` or `R`. `?` is used where the data has no side.
+
+Balance comes from several of these at once. Halteres report body rotation in flight, the wind and gravity neurons in the antennae report which way is down, the leg load and position channels report where the weight is when standing, and the ocelli see the horizon.
+
+The channels only say which neurons fire together, not what a level means. For taste, the data does not say which neurons are sugar and which are bitter, so `taste/labellum` drives both. For halteres it does not say which neurons respond to which axis of rotation. `examples/senses.ts` drives each sense on its own and prints which motor and descending neurons respond.
+
 ## Setup
 
 You need bun and uv installed.

@@ -68,10 +68,14 @@ with open(ROOT / "brain.bin", "wb") as f:
 def col(name):
     return [None if (isinstance(v, float) and np.isnan(v)) or v is None else v for v in ann[name].tolist()]
 
+side = [s if isinstance(s, str) else (r if isinstance(r, str) else None)
+        for s, r in zip(ann["somaSide"], ann["rootSide"])]
 meta = {
     "bodyId": [int(b) for b in ann["bodyId"]],
-    "type": col("type"), "superclass": col("superclass"), "class": col("class"),
-    "side": col("somaSide"), "nt": col("nt"), "instance": col("instance"),
+    "type": col("type"), "superclass": col("superclass"), "class": col("class"), "subclass": col("subclass"),
+    "side": side, "nt": col("nt"), "instance": col("instance"),
+    "nerve": col("entryNerve"), "receptor": col("receptorType"),
+    "hex1": col("assignedOlHex1"), "hex2": col("assignedOlHex2"),   # optic lobe column, if any
 }
 (ROOT / "neurons.json").write_text(json.dumps(meta, separators=(",", ":")))
 print("wrote", ROOT / "brain.bin", ROOT / "neurons.json")

@@ -1,6 +1,6 @@
 /**
- * Classic test: looming-detector neurons (LC4, LPLC2) drive the Giant Fiber (DNp01),
- * the escape-jump command neuron. Poke the eyes, expect the jump neuron to fire.
+ * Drives the LC4 and LPLC2 looming detectors directly and reports spikes of the
+ * giant fiber (DNp01), the descending neuron for the escape jump.
  */
 import { openBrain, runWorld, type World } from "../src/index.ts";
 

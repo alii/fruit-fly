@@ -20,3 +20,7 @@ export async function openBrain(dir: string, params?: Partial<LifParams>) {
 
   return { brain: new Lif(graph, params), neurons: new Neurons(table), graph };
 }
+export { Eye } from "./eye.ts";
+export type { Frame, EyeOptions } from "./eye.ts";
+export { Senses } from "./senses.ts";
+export type { Channel, SensesOptions } from "./senses.ts";
