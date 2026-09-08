@@ -5,21 +5,21 @@ Run a fruit fly brain in TypeScript.
 The neurons and connections come from the [Janelia male CNS connectome](https://male-cns.janelia.org/), which maps every neuron in one fly. You give input to the sensory neurons and get spikes out of the motor neurons.
 
 ```ts
-import { openBrain, runWorld, type World } from "@fly/brain";
+import {openBrain, runWorld, type World} from '@fly/brain';
 
-const { brain, neurons } = await openBrain("data");
+const {brain, neurons} = await openBrain('data');
 
 const world: World = {
-  outputs: (n) => n.find({ superclass: "vnc_motor" }),
-  sense(t, brain, n) {
-    brain.setDrive(n.find({ class: "gustatory" }), t < 200 ? 50 : 0);
-  },
-  act(t, spikes, _b, n) {
-    for (const i of spikes) console.log(t, n.describe(i));
-  },
+	outputs: n => n.find({superclass: 'vnc_motor'}),
+	sense(t, brain, n) {
+		brain.setDrive(n.find({class: 'gustatory'}), t < 200 ? 50 : 0);
+	},
+	act(t, spikes, _b, n) {
+		for (const i of spikes) console.log(t, n.describe(i));
+	},
 };
 
-runWorld(brain, neurons, world, { ms: 500 });
+runWorld(brain, neurons, world, {ms: 500});
 ```
 
 `sense` is where you set firing rates. `act` runs whenever an output neuron fires. `neurons.find` looks up neurons by `type`, `class`, `side` and so on, using the names from the Janelia annotations.
@@ -33,17 +33,17 @@ The simulated clock exists because the neuron model is built from time constants
 `Eye` maps an image onto one compound eye and drives its lamina cells. Each eye is a hex grid of about 880 columns, and each column is one pixel.
 
 ```ts
-import { Eye } from "@fly/brain";
+import {Eye} from '@fly/brain';
 
-const eye = new Eye(neurons, "R");
+const eye = new Eye(neurons, 'R');
 
 const world: World = {
-  sense(t, brain) {
-    eye.see(brain, { width: 64, height: 64, data: pixels });
-  },
-  act(t, spikes, _b, n) {
-    /* ... */
-  },
+	sense(t, brain) {
+		eye.see(brain, {width: 64, height: 64, data: pixels});
+	},
+	act(t, spikes, _b, n) {
+		/* ... */
+	},
 };
 ```
 
@@ -58,14 +58,14 @@ The "got brighter" pathway does not get past the lamina in this model. In the re
 `senses` groups every other sensory neuron in the data into a tree. Every node is typed from the data, so the editor completes the names and a wrong one is a compile error.
 
 ```ts
-import { senses } from "@fly/brain";
+import {senses} from '@fly/brain';
 
 const s = senses(neurons);
 
 s.smell.DA1.set(brain, 0.8); // one glomerulus
 s.leg.front.L.touch.set(brain, 1); // bristles on one leg
 s.haltere.set(brain, 0.5); // every channel under a node
-s.at("leg/front/L/touch").set(brain, 1); // same thing by path
+s.at('leg/front/L/touch').set(brain, 1); // same thing by path
 s.off(brain);
 
 s.channels; // every channel and its neurons
