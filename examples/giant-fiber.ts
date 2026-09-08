@@ -4,7 +4,7 @@
  */
 import {openBrain, runWorld, type World} from '../src/index.ts';
 
-const {brain, neurons} = await openBrain(new URL('../../../data', import.meta.url).pathname);
+const {brain, neurons} = await openBrain(new URL('../data', import.meta.url).pathname);
 console.log(`neurons: ${brain.graph.n}  synapses: ${brain.graph.e}`);
 
 const lc4 = neurons.find({type: 'LC4'});

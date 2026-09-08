@@ -4,7 +4,7 @@
  */
 import {openBrain, runWorld, Eye, type Frame, type World} from '../src/index.ts';
 
-const {brain, neurons} = await openBrain(new URL('../../../data', import.meta.url).pathname);
+const {brain, neurons} = await openBrain(new URL('../data', import.meta.url).pathname);
 const eye = new Eye(neurons, 'R');
 console.log(`right eye: ${eye.columns.length} columns`);
 

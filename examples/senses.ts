@@ -4,7 +4,7 @@
  */
 import {openBrain, runWorld, senses, defaultOutputs, type Sense, type World} from '../src/index.ts';
 
-const {brain, neurons} = await openBrain(new URL('../../../data', import.meta.url).pathname);
+const {brain, neurons} = await openBrain(new URL('../data', import.meta.url).pathname);
 const s = senses(neurons);
 
 console.log('channels:');

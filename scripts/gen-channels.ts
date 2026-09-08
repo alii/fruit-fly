@@ -3,7 +3,7 @@ import {loadNeurons} from '../src/format.ts';
 import {channelName} from '../src/senses.ts';
 import {range} from '../src/util.ts';
 
-const dataDir = process.argv[2] ?? new URL('../../../data', import.meta.url).pathname;
+const dataDir = process.argv[2] ?? new URL('../data', import.meta.url).pathname;
 const t = await loadNeurons(`${dataDir}/neurons.json`);
 const names = [
 	...new Set(

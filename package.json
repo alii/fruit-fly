@@ -1,0 +1,34 @@
+{
+	"name": "flybrain",
+	"version": "0.0.1",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"build:data": "uv run --with pyarrow --with pandas --with numpy python3 scripts/build_brain.py",
+		"gen:channels": "bun run scripts/gen-channels.ts",
+		"example": "bun run examples/giant-fiber.ts",
+		"typecheck": "tsc --noEmit -p .",
+		"lint": "eslint .",
+		"format": "prettier --write .",
+		"format:check": "prettier --check ."
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@types/bun": "latest",
+		"eslint": "^10.10.0",
+		"eslint-plugin-functional": "^10.0.0",
+		"prettier": "^3.9.6",
+		"typescript": "^5.9",
+		"typescript-eslint": "^8.70.0"
+	},
+	"description": "Spiking simulation of the fruit fly brain from the Janelia male CNS connectome",
+	"license": "MIT",
+	"repository": "github:alii/fly",
+	"files": [
+		"src",
+		"scripts/gen-channels.ts",
+		"README.md"
+	]
+}
